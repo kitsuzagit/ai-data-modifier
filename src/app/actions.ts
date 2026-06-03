@@ -58,7 +58,8 @@ export async function loginWithGoogle() {
 }
 
 export async function logout() {
-  await signOut({ redirectTo: '/' });
+  // 💡 サーバー側での自動リダイレクトを無効化し、クライアント側で安全に制御できるようにします
+  await signOut({ redirect: false });
 }
 
 export async function getUserStatus() {
