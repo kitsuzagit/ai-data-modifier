@@ -58,8 +58,7 @@ export async function loginWithGoogle() {
 }
 
 export async function logout() {
-  // 💡 サーバー側での自動リダイレクトを無効化し、クライアント側で安全に制御できるようにします
-  await signOut({ redirect: false });
+  await signOut({ redirectTo: '/' });
 }
 
 export async function getUserStatus() {
@@ -129,6 +128,41 @@ export async function createCustomerPortalSession() {
     console.error("Portal Session Error:", error);
     return { url: null };
   }
+}
+
+// 🆕 【追記】履歴一覧を取得する関数（サイドバー表示用）
+export async function getUserHistory() {
+  const session = await auth();
+  if (!session?.user?.id) return [];
+
+  const { data, error } = await supabase
+    .from('modification_histories')
+    .select('id, title, created_at')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Fetch history error:", error);
+    return [];
+  }
+  return data;
+}
+
+// 🆕 【追記】特定の履歴の詳細を取得する関数（見返し用）
+export async function getHistoryDetail(historyId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('認証が必要です。');
+
+  const { data, error } = await supabase
+    .from('modification_histories')
+    .select('*')
+    .eq('id', historyId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  if (data.user_id !== session.user.id) throw new Error('不正なアクセスです。');
+
+  return data;
 }
 
 export async function modifyData(title: string, rawData: string, instruction: string): Promise<string> {
@@ -248,6 +282,20 @@ ${rawData}
 
     if (!resText) {
       throw new Error('AIから有効なデータが返却されませんでした。');
+    }
+
+    // 🛠️ 【修正・追記箇所】AIの返答取得に成功したら、新設した履歴テーブルに自動保存
+    const { error: historyError } = await supabase
+      .from('modification_histories')
+      .insert({
+        user_id: targetKey,
+        title: title,
+        instruction: instruction,
+        modified_data: resText // AIから返ってきたJSON文字列をそのまま保存
+      });
+    
+    if (historyError) {
+      console.error('Failed to save history to Supabase:', historyError);
     }
 
     // 2. 【カウント消費】AIのデータ取得が完全に成功した「後」にインクリメント

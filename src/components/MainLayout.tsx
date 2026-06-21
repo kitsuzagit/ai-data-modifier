@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SidebarFooter from './SidebarFooter'; // 同じフォルダからの相対パス
+import Link from 'next/link';
+import { getUserHistory } from '../app/actions'; // 📄 履歴を取得するサーバーアクションをインポート
 
 export default function MainLayout() {
   // 設定モーダルの開閉状態
@@ -9,6 +11,22 @@ export default function MainLayout() {
   
   // モーダル内のタブ状態 ('modify' = データ修正, 'settings' = 設定)
   const [modalTab, setModalTab] = useState<'modify' | 'settings'>('settings');
+
+  // 🆕 履歴データを管理する状態（State）を追加
+  const [history, setHistory] = useState<any[]>([]);
+
+  // 🆕 画面が表示されたときに、Supabaseから履歴一覧を自動取得する
+  useEffect(() => {
+    async function fetchHistory() {
+      try {
+        const data = await getUserHistory();
+        setHistory(data);
+      } catch (error) {
+        console.error("履歴の取得に失敗しました:", error);
+      }
+    }
+    fetchHistory();
+  }, []);
 
   // アカウントダミーデータ
   const userEmail = 't.hiroki926@gmail.com';
@@ -20,9 +38,42 @@ export default function MainLayout() {
       
       {/* 左側：サイドバー */}
       <aside className="w-64 border-r border-gray-200 dark:border-zinc-850 flex flex-col justify-between bg-white dark:bg-zinc-900 select-none">
-        <div className="p-4">
-          <div className="text-xs font-bold text-slate-400 dark:text-zinc-500 tracking-wider px-2 pt-2">
+        <div className="p-4 flex-1 flex flex-col min-h-0">
+          <div className="text-xs font-bold text-slate-400 dark:text-zinc-500 tracking-wider px-2 pt-2 mb-4">
             ワークスペース
+          </div>
+
+          {/* 🆕 ➕ 新規データ加工ボタン（過去データからいつでも真っ白に戻れるリンク） */}
+          <div className="px-2 mb-6">
+            <Link 
+              href="/" 
+              className="block w-full text-center bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-4 rounded-xl transition text-xs shadow-sm shadow-indigo-500/10"
+            >
+              ＋ 新規データ加工
+            </Link>
+          </div>
+
+          {/* 🆕 📜 履歴リスト部分をここに合体！ */}
+          <div className="flex-1 overflow-y-auto px-1 space-y-1">
+            <div className="px-2 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-2">
+              前回の履歴
+            </div>
+            
+            {history.length === 0 ? (
+              <div className="text-xs text-slate-400 dark:text-zinc-500 px-2 py-4">
+                履歴がありません
+              </div>
+            ) : (
+              history.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/?history_id=${item.id}`} // 💡 URLにIDを付与してメイン画面に伝える
+                  className="block px-2.5 py-2 rounded-xl text-xs text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-100 transition truncate"
+                >
+                  📄 {item.title || '無題のデータ'}
+                </Link>
+              ))
+            )}
           </div>
         </div>
 
@@ -61,7 +112,7 @@ export default function MainLayout() {
       </div>
 
       {/* ────────────────────────────────────────────────────────
-         🌟 モーダルウィンドウ（確実な表示のためアニメーションクラスを除去）
+          🌟 モーダルウィンドウ
       ──────────────────────────────────────────────────────── */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -103,7 +154,7 @@ export default function MainLayout() {
             <div className="px-6 py-3 bg-slate-50/60 dark:bg-zinc-900/40 border-b border-gray-100 dark:border-zinc-800/80 flex justify-start">
               <div className="flex items-center bg-[#eef1f4] dark:bg-zinc-850 p-1 rounded-[20px] border border-gray-200/40 dark:border-zinc-800/40 w-fit">
                 
-                {/* データ修正 タブ */}
+                {/* 数据修正 タブ */}
                 <button
                   onClick={() => setModalTab('modify')}
                   className={`flex items-center gap-2 px-4 py-1.5 text-xs font-semibold transition-all duration-150 rounded-[14px] ${
